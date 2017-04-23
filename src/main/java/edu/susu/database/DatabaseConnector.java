@@ -11,14 +11,14 @@ import edu.susu.exception.IdleUpdateException;
  */
 public class DatabaseConnector {
 	
-	boolean debugMode = true;
+	private boolean debugMode = true;
 	public final static String EMBEDDED_DERBY_DRIVER = "org.apache.derby.jdbc.EmbeddedDriver";
 	public final static String DERBY_PROTOCOL = "jdbc:derby:";
 	
-	final String driver;
-	final String protocol;
-	final String dbName;
-	Connection connection;
+	private final String driver;
+	private final String protocol;
+	private final String dbName;
+	private Connection connection;
 	
 	/**
 	 * Создаёт объект коннектора к указанной базе данных и регистрирует встроенный драйвер
@@ -61,8 +61,24 @@ public class DatabaseConnector {
 		connection = DriverManager.getConnection(protocol + dbName + ";create=true");
 		if (debugMode)
 			System.out.println("Connected to / created database " + dbName);
-		if (isDatabaseEmpty())
+		if (isDatabaseEmpty()) {
 			createTables();
+			if (debugMode)
+				System.out.println("Created tables");
+		}
+	}
+
+	/**
+	 * Проверка, не закрыто ли соединение с базой данных
+	 * @return false, если соединение закрыто, иначе true
+	 */
+	public boolean isConnected() {
+		try {
+			return !connection.isClosed();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return false;
+		}
 	}
 	
 	/**
@@ -70,8 +86,10 @@ public class DatabaseConnector {
 	 */
 	public void close() {
 		try {
-			if (!connection.isClosed())
+			if (isConnected())
 				connection.close();
+			if (debugMode)
+				System.out.println("Disconnected from database");
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -90,7 +108,7 @@ public class DatabaseConnector {
 		if (res.next()) {
 			result = false;
 			if (debugMode)
-				System.out.println(res.getString(1));
+				System.out.println(res.getString(3));
 		}
 		res.close();
 		return result;
@@ -128,6 +146,8 @@ public class DatabaseConnector {
 		for (String sql : sqls)
 			try {
 				connection.createStatement().executeUpdate(sql);
+				if (debugMode)
+					System.out.print(sql);
 			} catch (SQLException sqle) {
 				System.out.println(sqle.getSQLState());
 				// 42Y55 - STATEMENT cannot be performed on TABLE because it does not exist
@@ -145,7 +165,7 @@ public class DatabaseConnector {
 	 * @throws SQLException
 	 */
 	public void addUser(String name, byte[] pswdHash) throws SQLException {
-		final String sql = "INSERT INTO USERS(username, password_hash, ann_id) VALUES(?, ?, ?)";
+		final String sql = "INSERT INTO USERS(username, password_hash, ann_config_path) VALUES(?, ?, ?)";
 		final PreparedStatement preparedStatement = connection.prepareStatement(sql);
 		preparedStatement.setString(1, name);
 		preparedStatement.setBytes(2, pswdHash);
@@ -162,13 +182,13 @@ public class DatabaseConnector {
 	 */
 	public User getUser(String name) throws SQLException {
 		User result = null;
-		final String sql = "SELECT * FROM Users WHERE username = " + name;
+		final String sql = "SELECT * FROM Users WHERE username = \'" + name + "\'";
 		ResultSet rs = connection.createStatement().executeQuery(sql);
 		if (rs.next()) {
 			result = new User();
 			result.setUsername(rs.getString("username"));
 			result.setPasswordHash(rs.getBytes("password_hash"));
-			result.setNeuralNetworkConfigFilePath(rs.getString("ann_config"));
+			result.setNeuralNetworkConfigFilePath(rs.getString("ann_config_path"));
 		}
 		return result;
 	}
@@ -182,8 +202,11 @@ public class DatabaseConnector {
 	 */
 	public void updateUserPassword(String name, byte[] newPswdHash) throws SQLException, IdleUpdateException 
 	{
-		String newPswdHashString = newPswdHash.toString(); // TODO: implement a methos to return in x'4f33901a' format
-		String sql = "UPDATE Users SET password_hash = " + newPswdHashString + " WHERE username = " + name;
+		StringBuilder hexString = new StringBuilder("x\'");
+		for(byte b : newPswdHash)
+			hexString.append(String.format("%02x", b));
+		String newPswdHashHexString = hexString.append('\'').toString(); // byte array in string format, like x'4f33901a'
+		String sql = "UPDATE Users SET password_hash = " + newPswdHashHexString + " WHERE username = \'" + name + "\'";
 		int result = connection.createStatement().executeUpdate(sql);
 		if (result == 0)
 			throw new IdleUpdateException("No updates where made");
@@ -199,7 +222,7 @@ public class DatabaseConnector {
 	 * @throws IdleUpdateException если пользователя не существует или новое имя файла совпадает со старым
 	 */
 	public void updateUserConfigFile(String name, String newFilePath) throws SQLException, IdleUpdateException {
-		String sql = "UPDATE Users SET ann_config = " + newFilePath	+ " WHERE username = " + name;
+		String sql = "UPDATE Users SET ann_config_path = \'" + newFilePath	+ "\' WHERE username = \'" + name + "\'";
 		int result = connection.createStatement().executeUpdate(sql);
 		if (result == 0)
 			throw new IdleUpdateException("No updates where made");
@@ -214,7 +237,7 @@ public class DatabaseConnector {
 	 * @throws IdleUpdateException если пользователя не существует (нечего удалять)
 	 */
 	public void deleteUser(String name) throws SQLException, IdleUpdateException {
-		String sql = "DELETE FROM Users WHERE username = " + name;
+		String sql = "DELETE FROM Users WHERE username = \'" + name + "\'";
 		int result = connection.createStatement().executeUpdate(sql);
 		if (result == 0)
 			throw new IdleUpdateException("No deletes where made");

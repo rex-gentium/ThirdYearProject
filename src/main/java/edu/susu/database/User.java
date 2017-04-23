@@ -1,6 +1,7 @@
 package edu.susu.database;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * Представление пользователя
@@ -32,6 +33,10 @@ public class User implements Serializable {
 	}
 	public void setNeuralNetworkConfigFilePath(String neuralNetworkConfigFilePath) {
 		this.neuralNetworkConfigFilePath = neuralNetworkConfigFilePath;
+	}
+
+	public boolean assertPassword(byte[] passwordHash) {
+		return Arrays.equals(passwordHash, this.passwordHash);
 	}
 	
 }

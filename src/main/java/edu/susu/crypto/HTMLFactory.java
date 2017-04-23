@@ -1,6 +1,6 @@
 package edu.susu.crypto;
 
-public abstract class HTMLFactory {
+abstract class HTMLFactory {
 	
 	private static final String template = "<!DOCTYPE html>"
 		+ "<html>"
@@ -12,51 +12,63 @@ public abstract class HTMLFactory {
 		+ "$content"
 		+ "</body>"
 		+ "</html>";
+
+	private static final String loginForm = "<form action=\""+ Routes.LOGIN +"\" method=\"post\">"
+			+ "Username:<br>"
+			+ "<input type=\"text\" name=\"username\"><br>"
+			+ "Password:<br>"
+			+ "<input type=\"password\" name=\"password\"><br>"
+			+ "<input type=\"submit\" value=\"Sign in\">"
+			+ "</form>";
+
+	private static final String registrationForm = "<form action=\""+ Routes.REGISTER +"\" method=\"post\">"
+			+ "Username:<br>"
+			+ "<input type=\"text\" name=\"username\"><br>"
+			+ "Password:<br>"
+			+ "<input type=\"password\" name=\"password\"><br>"
+			+ "<input type=\"submit\" value=\"Register\">"
+			+ "</form>";
 	
 	public static String createHomePage() {
 		String page = template.replace("$title", "Crypto ANN");
-		page = page.replace("$content", "<h1>Hello, stranger!</h1>" 
-				+ "You can try to register <a href=\""+ Routes.REGISTER +"\">here</a>");
+		page = page.replace("$content", "<h1>Hello, stranger!</h1>"
+				+ "<p>Please sign in to access Web Service</p>"
+				+ loginForm
+				+ "Or you can try to <a href=\""+ Routes.REGISTER +"\">register</a>");
 		return page;
 	}
-	
-	public static String createUserPage(String username) {
-		String page = template.replace("$title", "Crypto ANN");
-		page = page.replace("$content", "<h1>Hello, " + username + "</h1>");
-		return page;
-	}
-	
+
 	public static String createHomePage(String errorExplanation) {
 		String page = template.replace("$title", "Crypto ANN");
 		page = page.replace("$content", "<h1>Hello, stranger!</h1>"
-				+ errorExplanation + "<br>"
-				+ "You can try to register <a href=\""+ Routes.REGISTER +"\">here</a>.");
+				+ "<p>" + errorExplanation + "</p>"
+				+ loginForm
+				+ "Or you can try to <a href=\""+ Routes.REGISTER +"\">register</a>");
+		return page;
+	}
+
+	public static String createUserPage(String username) {
+		String page = template.replace("$title", "Crypto ANN");
+		page = page.replace("$content", "<h1>Hello, " + username + "</h1>"
+			+ "<p>This is your private page.</p>");
 		return page;
 	}
 	
 	public static String createRegistrationPage() {
 		String page = template.replace("$title", "Crypto ANN");
-		String form = "<form action=\""+ Routes.REGISTER +"\" method=\"post\">"
-		+ "Username:<br>"
-		+ "<input type=\"text\" name=\"username\"><br>"
-		+ "Password:<br>"
-		+ "<input type=\"password\" name=\"password\"><br>"
-		+ "<input type=\"submit\" value=\"Register\">"
-		+ "</form>";
-		page = page.replace("$content", "<h1>Register, stranger!</h1>" + form);
+		page = page.replace("$content", "<h1>Registration</h1>"
+				+ "<p>Please fill the form below to create your account</p>"
+				+ registrationForm);
 		return page;
 	}
 	
 	public static String createRegistrationPage(String errorCause) {
 		String page = template.replace("$title", "Crypto ANN");
-		String form = "<form action=\""+ Routes.REGISTER +"\" method=\"post\">"
-		+ "Username:<br>"
-		+ "<input type=\"text\" name=\"username\"><br>"
-		+ "Password:<br>"
-		+ "<input type=\"password\" name=\"password\"><br>"
-		+ "<input type=\"submit\" value=\"Register\">"
-		+ "</form>";
-		page = page.replace("$content", "<h1>Register, stranger!</h1>" + errorCause + "<br>" + form);
+		page = page.replace("$content", "<h1>Registration</h1>"
+				+ "<p>" + errorCause + "</p>"
+				+ "<p>Please fill the form below to create your account</p>"
+				+ registrationForm);
 		return page;
 	}
+
 }
