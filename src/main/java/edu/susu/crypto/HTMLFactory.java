@@ -47,7 +47,7 @@ abstract class HTMLFactory {
 		return page;
 	}
 
-	public static String createUserPage(String username) {
+	public static String createUserPage(String username, String sessionKey) {
 		String page = template.replace("$title", "Crypto ANN");
 		page = page.replace("$content", "<h1>Hello, " + username + "</h1>"
 			+ "<p>This is your private page.</p>");

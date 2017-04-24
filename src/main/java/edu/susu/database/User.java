@@ -38,5 +38,8 @@ public class User implements Serializable {
 	public boolean assertPassword(byte[] passwordHash) {
 		return Arrays.equals(passwordHash, this.passwordHash);
 	}
-	
+
+	public boolean equals(User that) {
+		return this.username.equals(that.username);
+	}
 }

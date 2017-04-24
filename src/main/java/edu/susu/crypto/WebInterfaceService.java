@@ -6,16 +6,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
-import java.util.HashSet;
-import java.util.Set;
 
-import javax.swing.text.html.HTML;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import edu.susu.database.DatabaseConnector;
-import edu.susu.database.User;
+import edu.susu.database.*;
 import edu.susu.exception.*;
 
 /**
@@ -27,7 +23,7 @@ import edu.susu.exception.*;
 public class WebInterfaceService {
 
     static DatabaseConnector db; // инициализируется в ServiceContextListener
-    private Set<User> currentUsers = new HashSet<User>();
+    private static SessionPool sessions = new SessionPool();
 
     /**
      * Генерирует главную страницу сервиса
@@ -46,9 +42,14 @@ public class WebInterfaceService {
      */
     @Path("/{usr}")
     @GET
-    @Produces(MediaType.TEXT_HTML)
-    public String getPersonalPage(@PathParam("usr") String usr) {
-        return HTMLFactory.createUserPage(usr);
+    //@Produces(MediaType.TEXT_HTML)
+    public Response getPersonalPage(@PathParam("usr") String usr, @QueryParam("key") String sessionKey) throws URISyntaxException {
+        if (sessionKey == null || sessionKey.isEmpty())
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        Session session = sessions.getSession(sessionKey);
+        if (session == null || !session.getUser().getUsername().equalsIgnoreCase(usr))
+            return Response.accepted(HTMLFactory.createHomePage("Session time expired. Please sign in again.")).build();
+        return Response.ok(HTMLFactory.createUserPage(usr, sessionKey), MediaType.TEXT_HTML).build();
     }
 
     /**
@@ -61,8 +62,8 @@ public class WebInterfaceService {
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response login(@FormParam("username") String username, @FormParam("password")String password) throws URISyntaxException {
         try {
-            authUser(username, password);
-            return Response.seeOther(new URI(Routes.HOME + "/" + username)).build();
+            String userSessionKey = authUser(username, password);
+            return Response.seeOther(new URI(Routes.HOME + username + "?key=" + userSessionKey)).build();
         } catch (UserDoesNotExistException usrEx) {
             return Response.seeOther(new URI(Routes.LOGIN + "?cause=nullUser")).build();
         } catch (PasswordMismatchException pswdEx) {
@@ -85,6 +86,7 @@ public class WebInterfaceService {
         switch(errorCause) {
             case "nullUser": return HTMLFactory.createHomePage("Account with the given username does not exist.");
             case "passwordMismatch" : return HTMLFactory.createHomePage("Incorrect password.");
+            case "notAuthorized" : return HTMLFactory.createHomePage("Look's like you're not authenticated on server");
             default: throw new FailureCauseNotSpecifiedException();
         }
     }
@@ -158,24 +160,25 @@ public class WebInterfaceService {
      * Производит авторизацию пользователя в сервисе
      * @param name имя пользователя
      * @param password пароль
+     * @return ключ новой сессии пользователя
      * @throws UserDoesNotExistException если пользователь не найден в базе данных
      * @throws PasswordMismatchException если пользователь найден, но введен неверный пароль
      * @throws DatabaseUnreachableException если не удалось подключиться к базе данных
      */
-    private void authUser(String name, String password) throws UserDoesNotExistException, PasswordMismatchException, DatabaseUnreachableException {
+    private String authUser(String name, String password) throws UserDoesNotExistException, PasswordMismatchException, DatabaseUnreachableException {
         if (db.isConnected()) {
             try {
                 User entry = db.getUser(name);
                 if (entry == null)
                     throw new UserDoesNotExistException();
-                if (currentUsers.contains(entry))
-                    return; // already authorized;
+                //if (sessions.containsValue(entry))
+                //    return; // already authorized;
                 byte[] hash = getPasswordHash(password);
                 boolean passwordMatch = entry.assertPassword(hash);
                 if (!passwordMatch)
                     throw new PasswordMismatchException();
                 else
-                    currentUsers.add(entry);
+                    return sessions.openSession(entry, 30);
             } catch (SQLException e) {
                 throw new DatabaseUnreachableException();
             }
@@ -199,4 +202,5 @@ public class WebInterfaceService {
             return new byte[32];
         }
     }
+
 }
