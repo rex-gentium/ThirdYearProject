@@ -9,6 +9,7 @@ import java.sql.SQLException;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 
 import edu.susu.database.*;
@@ -43,7 +44,7 @@ public class WebInterfaceService {
     @Path("/{usr}")
     @GET
     //@Produces(MediaType.TEXT_HTML)
-    public Response getPersonalPage(@PathParam("usr") String usr, @QueryParam("session") String sessionKey, @QueryParam("token") String token) throws URISyntaxException {
+    public Response getPersonalPage(@PathParam("usr") String usr, @CookieParam("session") String sessionKey, @CookieParam("token") String token) throws URISyntaxException {
         if (sessionKey == null || sessionKey.isEmpty() || token == null || token.isEmpty())
             return Response.status(Response.Status.UNAUTHORIZED).build();
         Session session = sessions.getSession(sessionKey);
@@ -51,7 +52,8 @@ public class WebInterfaceService {
             return Response.accepted(HTMLFactory.createHomePage("Session time expired. Please sign in again.")).build();
         session.extend(30);
         session.tokenUsageCount++;
-        return Response.ok(HTMLFactory.createUserPage(usr, sessionKey, session.getToken()), MediaType.TEXT_HTML).build();
+        NewCookie[] cookies = formCookies(sessionKey, session.getToken());
+        return Response.ok(HTMLFactory.createUserPage(usr), MediaType.TEXT_HTML).cookie(cookies).build();
     }
 
     /**
@@ -69,7 +71,8 @@ public class WebInterfaceService {
             if (sessions.getSession(userSessionKey).getUser().getNeuralNetworkConfigFilePath() == null);
                 // первый логин
                 //return Response.seeOther(new URI(Routes.NETWORK_INIT)).;
-            return Response.seeOther(new URI(Routes.HOME + username + "?session=" + userSessionKey + "&token=" + token)).build();
+            NewCookie[] cookies = formCookies(userSessionKey, token);
+            return Response.seeOther(new URI(Routes.HOME + username)).cookie(cookies).build();
         } catch (UserDoesNotExistException usrEx) {
             return Response.seeOther(new URI(Routes.LOGIN + "?cause=nullUser")).build();
         } catch (PasswordMismatchException pswdEx) {
@@ -142,7 +145,7 @@ public class WebInterfaceService {
 
     @Path("/logout")
     @GET
-    public Response logout(@QueryParam("session") String sessionKey) throws URISyntaxException {
+    public Response logout(@CookieParam("session") String sessionKey) throws URISyntaxException {
         if (sessionKey == null || sessionKey.isEmpty())
             return Response.status(Response.Status.BAD_REQUEST).build();
         Session session = sessions.getSession(sessionKey);
@@ -220,4 +223,9 @@ public class WebInterfaceService {
         }
     }
 
+    private NewCookie[] formCookies(String session, String token) {
+        NewCookie[] cookies = { new NewCookie("session", session),
+                new NewCookie("token", token)};
+        return cookies;
+    }
 }

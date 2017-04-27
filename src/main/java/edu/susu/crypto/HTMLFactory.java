@@ -52,18 +52,14 @@ abstract class HTMLFactory {
 		return page;
 	}
 
-	public static String createUserPage(String username, String sessionKey, String token) {
+	public static String createUserPage(String username) {
 		String page = template.replace("$title", "Crypto ANN");
 		page = page.replace("$content", "<h1>Hello, " + username + "</h1>"
 				+ "<p>This is your private page.</p>"
 				+ "<p>We assume jumping <a href=\"" + Routes.HOME + "/" + username
-				+ "?session=" + sessionKey
-				+ "&token=" + token
-				+ "\">this exact page</a> could be done only once per token.</p>"
-				+ "<form action=\"" + Routes.LOGOUT + "\" method=\"get\">"
-				+ "<input type=\"hidden\" name=\"session\" value=\"" + sessionKey + "\"/>"
-				+ "<input type=\"submit\" value=\"Log out\" />\n" +
-				"</form>");
+                + "\">this exact page</a> could be done only once per token.</p>"
+				+ "<a href=\"" + Routes.LOGOUT + "\">Sign out</a>"
+				+ "</form>");
 		return page;
 	}
 	
