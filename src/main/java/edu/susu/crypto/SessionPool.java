@@ -24,6 +24,13 @@ public class SessionPool {
         return key;
     }
 
+    public void closeSession(String sessionKey) {
+        Session session = sessions.get(sessionKey);
+        if (session != null)
+            session.close();
+        sessions.remove(sessionKey);
+    }
+
     /**
      * Возвращает сессию по ключу
      * @param key ключ

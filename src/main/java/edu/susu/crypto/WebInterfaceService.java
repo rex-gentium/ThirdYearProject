@@ -43,13 +43,15 @@ public class WebInterfaceService {
     @Path("/{usr}")
     @GET
     //@Produces(MediaType.TEXT_HTML)
-    public Response getPersonalPage(@PathParam("usr") String usr, @QueryParam("key") String sessionKey) throws URISyntaxException {
-        if (sessionKey == null || sessionKey.isEmpty())
+    public Response getPersonalPage(@PathParam("usr") String usr, @QueryParam("session") String sessionKey, @QueryParam("token") String token) throws URISyntaxException {
+        if (sessionKey == null || sessionKey.isEmpty() || token == null || token.isEmpty())
             return Response.status(Response.Status.UNAUTHORIZED).build();
         Session session = sessions.getSession(sessionKey);
-        if (session == null || !session.getUser().getUsername().equalsIgnoreCase(usr))
+        if (session == null || !session.getUser().getUsername().equalsIgnoreCase(usr) || !session.getToken().equals(token))
             return Response.accepted(HTMLFactory.createHomePage("Session time expired. Please sign in again.")).build();
-        return Response.ok(HTMLFactory.createUserPage(usr, sessionKey), MediaType.TEXT_HTML).build();
+        session.extend(30);
+        session.tokenUsageCount++;
+        return Response.ok(HTMLFactory.createUserPage(usr, sessionKey, session.getToken()), MediaType.TEXT_HTML).build();
     }
 
     /**
@@ -63,7 +65,11 @@ public class WebInterfaceService {
     public Response login(@FormParam("username") String username, @FormParam("password")String password) throws URISyntaxException {
         try {
             String userSessionKey = authUser(username, password);
-            return Response.seeOther(new URI(Routes.HOME + username + "?key=" + userSessionKey)).build();
+            String token = sessions.getSession(userSessionKey).getToken();
+            if (sessions.getSession(userSessionKey).getUser().getNeuralNetworkConfigFilePath() == null);
+                // первый логин
+                //return Response.seeOther(new URI(Routes.NETWORK_INIT)).;
+            return Response.seeOther(new URI(Routes.HOME + username + "?session=" + userSessionKey + "&token=" + token)).build();
         } catch (UserDoesNotExistException usrEx) {
             return Response.seeOther(new URI(Routes.LOGIN + "?cause=nullUser")).build();
         } catch (PasswordMismatchException pswdEx) {
@@ -132,6 +138,17 @@ public class WebInterfaceService {
             default:
                 throw new FailureCauseNotSpecifiedException();
         }
+    }
+
+    @Path("/logout")
+    @GET
+    public Response logout(@QueryParam("session") String sessionKey) throws URISyntaxException {
+        if (sessionKey == null || sessionKey.isEmpty())
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        Session session = sessions.getSession(sessionKey);
+        if (session != null)
+            sessions.closeSession(sessionKey);
+        return Response.seeOther(new URI(Routes.HOME)).build();
     }
 
     /**

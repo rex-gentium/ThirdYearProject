@@ -28,6 +28,11 @@ abstract class HTMLFactory {
 			+ "<input type=\"password\" name=\"password\"><br>"
 			+ "<input type=\"submit\" value=\"Register\">"
 			+ "</form>";
+
+	private static final String hiddenForm = "<form action=\"$action\" method=\"post\">"
+			+ "<input type=\"hidden\" name=\"session\" value=\"$session\"><br>"
+			+ "<input type=\"hidden\" name=\"token\" value=\"$token\"><br>"
+			+ "</form>";
 	
 	public static String createHomePage() {
 		String page = template.replace("$title", "Crypto ANN");
@@ -47,10 +52,18 @@ abstract class HTMLFactory {
 		return page;
 	}
 
-	public static String createUserPage(String username, String sessionKey) {
+	public static String createUserPage(String username, String sessionKey, String token) {
 		String page = template.replace("$title", "Crypto ANN");
 		page = page.replace("$content", "<h1>Hello, " + username + "</h1>"
-			+ "<p>This is your private page.</p>");
+				+ "<p>This is your private page.</p>"
+				+ "<p>We assume jumping <a href=\"" + Routes.HOME + "/" + username
+				+ "?session=" + sessionKey
+				+ "&token=" + token
+				+ "\">this exact page</a> could be done only once per token.</p>"
+				+ "<form action=\"" + Routes.LOGOUT + "\" method=\"get\">"
+				+ "<input type=\"hidden\" name=\"session\" value=\"" + sessionKey + "\"/>"
+				+ "<input type=\"submit\" value=\"Log out\" />\n" +
+				"</form>");
 		return page;
 	}
 	
