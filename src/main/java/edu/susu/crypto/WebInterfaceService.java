@@ -1,5 +1,6 @@
 package edu.susu.crypto;
 
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -8,9 +9,12 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 
 import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
+import javax.ws.rs.core.*;
+
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataParam;
 
 import edu.susu.database.*;
 import edu.susu.exception.*;
@@ -43,7 +47,6 @@ public class WebInterfaceService {
      */
     @Path("/{usr}")
     @GET
-    //@Produces(MediaType.TEXT_HTML)
     public Response getPersonalPage(@PathParam("usr") String usr, @CookieParam("session") String sessionKey, @CookieParam("token") String token) throws URISyntaxException {
         if (sessionKey == null || sessionKey.isEmpty() || token == null || token.isEmpty())
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -54,6 +57,58 @@ public class WebInterfaceService {
         session.tokenUsageCount++;
         NewCookie[] cookies = formCookies(sessionKey, session.getToken());
         return Response.ok(HTMLFactory.createUserPage(usr), MediaType.TEXT_HTML).cookie(cookies).build();
+    }
+
+    @Path("/{usr}/init")
+    @GET
+    public Response getNetworkInitializationPage(@PathParam("usr") String usr, @CookieParam("session") String sessionKey, @CookieParam("token") String token) throws URISyntaxException {
+        if (sessionKey == null || sessionKey.isEmpty() || token == null || token.isEmpty())
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        Session session = sessions.getSession(sessionKey);
+        if (session == null || !session.getUser().getUsername().equalsIgnoreCase(usr) || !session.getToken().equals(token))
+            return Response.accepted(HTMLFactory.createHomePage("Session time expired. Please sign in again.")).build();
+        session.extend(30);
+        session.tokenUsageCount++;
+        NewCookie[] cookies = formCookies(sessionKey, session.getToken());
+        return Response.ok(HTMLFactory.createANNInitPage(usr), MediaType.TEXT_HTML).cookie(cookies).build();
+    }
+
+    @Path("/{usr}/upload")
+    @POST
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response getNetworkInitializationResult(@PathParam("usr") String username,
+                                                   @CookieParam("session") String sessionKey,
+                                                   @CookieParam("token") String token,
+                                                   @FormDataParam("file") InputStream uploadedInputStream,
+                                                   @FormDataParam("file") FormDataContentDisposition fileDetail,
+                                                   @Suspended final AsyncResponse asyncResponse)
+            throws URISyntaxException
+    {
+        if (sessionKey == null || sessionKey.isEmpty() || token == null || token.isEmpty())
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        Session session = sessions.getSession(sessionKey);
+        if (session == null || !session.getUser().getUsername().equalsIgnoreCase(usr) || !session.getToken().equals(token))
+            return Response.accepted(HTMLFactory.createHomePage("Session time expired. Please sign in again.")).build();
+        session.extend(30);
+        session.tokenUsageCount++;
+        NewCookie[] cookies = formCookies(sessionKey, session.getToken());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Response result = veryExpensiveOperation();
+                asyncResponse.resume(result);
+            }
+
+            private Response veryExpensiveOperation() {
+                try {
+                    // TODO: write file on disk, summon train() function for file
+                    return Response.seeOther(new URI(Routes.HOME + "/" + username)).cookie(cookies).build();
+                } catch (URISyntaxException e) {
+                    // sad, but who cares
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     /**
@@ -68,10 +123,10 @@ public class WebInterfaceService {
         try {
             String userSessionKey = authUser(username, password);
             String token = sessions.getSession(userSessionKey).getToken();
-            if (sessions.getSession(userSessionKey).getUser().getNeuralNetworkConfigFilePath() == null);
-                // первый логин
-                //return Response.seeOther(new URI(Routes.NETWORK_INIT)).;
             NewCookie[] cookies = formCookies(userSessionKey, token);
+            if (sessions.getSession(userSessionKey).getUser().getNeuralNetworkConfigFilePath() == null)
+                // первый логин
+                return Response.seeOther(new URI(username + Routes.NETWORK_INIT)).cookie(cookies).build();
             return Response.seeOther(new URI(Routes.HOME + username)).cookie(cookies).build();
         } catch (UserDoesNotExistException usrEx) {
             return Response.seeOther(new URI(Routes.LOGIN + "?cause=nullUser")).build();
