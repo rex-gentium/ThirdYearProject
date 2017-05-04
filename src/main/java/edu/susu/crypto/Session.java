@@ -5,8 +5,6 @@ import edu.susu.database.User;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneOffset;
 
 public class Session {
     private User user;
@@ -52,7 +50,7 @@ public class Session {
     public void updateToken() {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-            byte[] bytes = (user.getUsername() + LocalDateTime.now().toString()).getBytes();
+            byte[] bytes = (user.getName() + LocalDateTime.now().toString()).getBytes();
             byte[] hash = messageDigest.digest(bytes);
             StringBuilder sb = new StringBuilder();
             for(byte b : hash)

@@ -29,7 +29,7 @@ abstract class HTMLFactory {
 			+ "<input type=\"submit\" value=\"Register\">"
 			+ "</form>";
 
-    private static final String fileUploadFormTemplate = "<form action=\"$action\" method=\"post\">"
+    private static final String fileUploadFormTemplate = "<form action=\"$action\" method=\"post\" enctype=\"multipart/form-data\">"
             + "<input type=\"file\" name=\"file\"><br>"
             + "<input type=\"submit\" value=\"Upload\">"
             + "</form>";
@@ -82,12 +82,13 @@ abstract class HTMLFactory {
 
 	public static String createANNInitPage(String username) {
 	    String page = template.replace("$title", "Crypto ANN");
-	    String fileUploadForm = fileUploadFormTemplate.replace("$action", Routes.HOME + "/" + username + "/upload");
+	    String fileUploadForm = fileUploadFormTemplate
+				.replace("$action", Routes.HOME + "/" + username + "/upload?mode=train");
         page = page.replace("$content", "<h1>ANN Initialization</h1>"
                 + "<h2>Hello, " + username + "</h2>"
                 + "<p>Since this is the first time you use our WebService, your personal Artificial Neural Network Encryptor should now be configured.</p>"
                 + "<p>Upload any file, some book for example, and we shall use it as a training set for your future Encryptor."
-                + "Once we've done, this Encryptor will be bound to your account ready to encrypt and decrypt any file you will give to it.</p>"
+                + " Once we're done, the Neral Network will be bound to your account, ready to encrypt and decrypt any file you will give to it.</p>"
                 + "<p>Please choose the file you want to use as a training set: </p>"
                 + fileUploadForm);
         return page;

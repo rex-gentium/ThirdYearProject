@@ -25,9 +25,6 @@ public class DatabaseConnector {
 	 * @param driverName название (встроенного) драйвера базы данных
 	 * @param protocol проткол подключения к базе данных
 	 * @param databaseName название базы данных
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
 	 */
 	public DatabaseConnector(String driverName, String protocol, String databaseName) 
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException 
@@ -39,12 +36,9 @@ public class DatabaseConnector {
 	}
 	
 	/**
-	 * Регистрирует втроенный драйвер базы данных
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
+	 * Регистрирует встроенный драйвер базы данных
 	 */
-	public void registerDerbyDriverInstance() 
+	public void registerDerbyDriverInstance()
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException 
 	{
 		Class.forName(driver).newInstance();
@@ -54,7 +48,6 @@ public class DatabaseConnector {
 	
 	/**
 	 * Осуществляет подключение к базе данных
-	 * @throws SQLException
 	 */
 	public void connect() throws SQLException 
 	{
@@ -98,19 +91,22 @@ public class DatabaseConnector {
 	/**
 	 * Проверяет, есть ли в базе таблицы, выводит их в консоль отладки
 	 * @return true если база не пуста, иначе false
-	 * @throws SQLException
 	 */
-	public boolean isDatabaseEmpty() throws SQLException {
+	public boolean isDatabaseEmpty() {
 		boolean result = true;
-		ResultSet res = connection.getMetaData().getTables(null, null, null, new String[] {"TABLE"});
-		if (debugMode)
-			System.out.println("List of tables: "); 
-		if (res.next()) {
-			result = false;
+		try {
+			ResultSet res = connection.getMetaData().getTables(null, null, null, new String[]{"TABLE"});
 			if (debugMode)
-				System.out.println(res.getString(3));
+				System.out.println("List of tables: ");
+			if (res.next()) {
+				result = false;
+				if (debugMode)
+					System.out.println(res.getString(3));
+			}
+			res.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
-		res.close();
 		return result;
 	}
 	
@@ -123,7 +119,7 @@ public class DatabaseConnector {
 				+ "("
 				+ "username VARCHAR(60) NOT NULL,"
 				+ "password_hash CHAR(32) FOR BIT DATA,"
-				+ "ann_config_path VARCHAR(1000),"
+				+ "storage_path VARCHAR(1000),"
 				+ "PRIMARY KEY (username)"
 				+ ")";
 		try {
@@ -160,80 +156,90 @@ public class DatabaseConnector {
 	
 	/**
 	 * Регистрация нового пользователя
-	 * @param name
-	 * @param pswdHash
-	 * @throws SQLException
+	 * @param name имя пользователя
+	 * @param pswdHash хеш пароля
 	 */
-	public void addUser(String name, byte[] pswdHash) throws SQLException {
-		final String sql = "INSERT INTO USERS(username, password_hash, ann_config_path) VALUES(?, ?, ?)";
-		final PreparedStatement preparedStatement = connection.prepareStatement(sql);
-		preparedStatement.setString(1, name);
-		preparedStatement.setBytes(2, pswdHash);
-		preparedStatement.setNull(3, Types.VARCHAR);
-		preparedStatement.executeUpdate();
-		connection.commit();
+	public void addUser(String name, byte[] pswdHash) {
+		final String sql = "INSERT INTO USERS(username, password_hash, storage_path) VALUES(?, ?, ?)";
+		try {
+			final PreparedStatement preparedStatement = connection.prepareStatement(sql);
+			preparedStatement.setString(1, name);
+			preparedStatement.setBytes(2, pswdHash);
+			preparedStatement.setNull(3, Types.VARCHAR);
+			preparedStatement.executeUpdate();
+			connection.commit();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
 	 * Получение представления пользователя
-	 * @param name
+	 * @param name имя пользователя
 	 * @return представление пользователя, null если пользователя не существует
-	 * @throws SQLException
 	 */
-	public User getUser(String name) throws SQLException {
+	public User getUser(String name) {
 		User result = null;
 		final String sql = "SELECT * FROM Users WHERE username = \'" + name + "\'";
-		ResultSet rs = connection.createStatement().executeQuery(sql);
-		if (rs.next()) {
-			result = new User();
-			result.setUsername(rs.getString("username"));
-			result.setPasswordHash(rs.getBytes("password_hash"));
-			result.setNeuralNetworkConfigFilePath(rs.getString("ann_config_path"));
+		try {
+			ResultSet rs = connection.createStatement().executeQuery(sql);
+			if (rs.next()) {
+				result = new User();
+				result.setName(rs.getString("username"));
+				result.setPasswordHash(rs.getBytes("password_hash"));
+				result.setStoragePath(rs.getString("storage_path"));
+			}
+		} catch(SQLException e) {
+			e.printStackTrace();
 		}
 		return result;
 	}
 	
 	/**
 	 * Обновление пароля пользователя
-	 * @param name
-	 * @param newPswdHash
-	 * @throws SQLException
+	 * @param name имя пользователя
+	 * @param newPswdHash новый хеш пароля
 	 * @throws IdleUpdateException если пользователя не существует или новый пароль совпадает со старым
 	 */
-	public void updateUserPassword(String name, byte[] newPswdHash) throws SQLException, IdleUpdateException 
+	public void updateUserPassword(String name, byte[] newPswdHash) throws IdleUpdateException
 	{
 		StringBuilder hexString = new StringBuilder("x\'");
 		for(byte b : newPswdHash)
 			hexString.append(String.format("%02x", b));
 		String newPswdHashHexString = hexString.append('\'').toString(); // byte array in string format, like x'4f33901a'
 		String sql = "UPDATE Users SET password_hash = " + newPswdHashHexString + " WHERE username = \'" + name + "\'";
-		int result = connection.createStatement().executeUpdate(sql);
-		if (result == 0)
-			throw new IdleUpdateException("No updates where made");
-		else 
-			connection.commit();
+		try {
+			performUpdate(sql);
+		} catch(SQLException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
-	 * Обновление файла настроек криптографических средств пользователя
-	 * @param name
-	 * @param newFilePath
-	 * @throws SQLException
+	 * Обновление адреса директории, где хранятся найстройки криптографических средств пользователя
+	 * @param name имя пользователя
+	 * @param newStoragePath новый путь директории
 	 * @throws IdleUpdateException если пользователя не существует или новое имя файла совпадает со старым
 	 */
-	public void updateUserConfigFile(String name, String newFilePath) throws SQLException, IdleUpdateException {
-		String sql = "UPDATE Users SET ann_config_path = \'" + newFilePath	+ "\' WHERE username = \'" + name + "\'";
-		int result = connection.createStatement().executeUpdate(sql);
-		if (result == 0)
-			throw new IdleUpdateException("No updates where made");
-		else 
-			connection.commit();
+	public void updateUserStoragePath(String name, String newStoragePath) throws IdleUpdateException {
+		String sql = "UPDATE Users SET storage_path=? WHERE username = \'" + name + "\'";
+		try {
+			PreparedStatement preparedStatement = connection.prepareStatement(sql);
+			if (newStoragePath == null)
+				preparedStatement.setNull(1,  Types.VARCHAR);
+			else
+				preparedStatement.setString(1, newStoragePath);
+			int res = preparedStatement.executeUpdate();
+			if (res == 0)
+				throw new IdleUpdateException();
+		} catch(SQLException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
 	 * Удаление учетной записи пользователя
-	 * @param name
-	 * @throws SQLException
+	 * @param name имя пользователя
 	 * @throws IdleUpdateException если пользователя не существует (нечего удалять)
 	 */
 	public void deleteUser(String name) throws SQLException, IdleUpdateException {
@@ -241,6 +247,20 @@ public class DatabaseConnector {
 		int result = connection.createStatement().executeUpdate(sql);
 		if (result == 0)
 			throw new IdleUpdateException("No deletes where made");
+		else
+			connection.commit();
+	}
+
+	/**
+	 * Отправляет update-запрос на выполнение базе данных
+	 * @param sql запрос
+	 * @throws SQLException при ошибке в запросе
+	 * @throws IdleUpdateException если запрос не повлёк изменений в базе
+	 */
+	private void performUpdate(String sql) throws SQLException, IdleUpdateException {
+		int result = connection.createStatement().executeUpdate(sql);
+		if (result == 0)
+			throw new IdleUpdateException("No updates where made");
 		else
 			connection.commit();
 	}

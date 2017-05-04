@@ -14,25 +14,24 @@ public class User implements Serializable {
 
 	private String username;
 	private byte[] passwordHash;
-	private String neuralNetworkConfigFilePath;
+	private String storagePath;
 	
-	public String getUsername() {
+	public String getName() {
 		return username;
 	}
-	public void setUsername(String username) {
+	public void setName(String username) {
 		this.username = username;
 	}
-	/*public byte[] getPasswordHash() {
-		return passwordHash;
-	}*/
+
 	public void setPasswordHash(byte[] passwordHash) {
 		this.passwordHash = passwordHash;
 	}
-	public String getNeuralNetworkConfigFilePath() {
-		return neuralNetworkConfigFilePath;
+
+	public String getStoragePath() {
+		return storagePath;
 	}
-	public void setNeuralNetworkConfigFilePath(String neuralNetworkConfigFilePath) {
-		this.neuralNetworkConfigFilePath = neuralNetworkConfigFilePath;
+	public void setStoragePath(String storagePath) {
+		this.storagePath = storagePath;
 	}
 
 	public boolean assertPassword(byte[] passwordHash) {

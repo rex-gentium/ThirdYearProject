@@ -1,14 +1,18 @@
 package edu.susu.crypto;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.SQLException;
 
 import javax.ws.rs.*;
+import javax.ws.rs.Path;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.*;
@@ -51,7 +55,7 @@ public class WebInterfaceService {
         if (sessionKey == null || sessionKey.isEmpty() || token == null || token.isEmpty())
             return Response.status(Response.Status.UNAUTHORIZED).build();
         Session session = sessions.getSession(sessionKey);
-        if (session == null || !session.getUser().getUsername().equalsIgnoreCase(usr) || !session.getToken().equals(token))
+        if (session == null || !session.getUser().getName().equalsIgnoreCase(usr) || !session.getToken().equals(token))
             return Response.accepted(HTMLFactory.createHomePage("Session time expired. Please sign in again.")).build();
         session.extend(30);
         session.tokenUsageCount++;
@@ -59,13 +63,23 @@ public class WebInterfaceService {
         return Response.ok(HTMLFactory.createUserPage(usr), MediaType.TEXT_HTML).cookie(cookies).build();
     }
 
+    /**
+     * Генерирует страницу инициализации криптографических средств пользователя
+     * @param usr имя пользователя
+     * @param sessionKey ключ сессии
+     * @param token действительный токен сессии
+     * @return unauthorized, ключ сессии или токен не заполнены;
+     * перенаправление на домашнюю страницу, если ключ сессии или токен неверны;
+     * иначе html-страницу
+     * @throws URISyntaxException
+     */
     @Path("/{usr}/init")
     @GET
     public Response getNetworkInitializationPage(@PathParam("usr") String usr, @CookieParam("session") String sessionKey, @CookieParam("token") String token) throws URISyntaxException {
         if (sessionKey == null || sessionKey.isEmpty() || token == null || token.isEmpty())
             return Response.status(Response.Status.UNAUTHORIZED).build();
         Session session = sessions.getSession(sessionKey);
-        if (session == null || !session.getUser().getUsername().equalsIgnoreCase(usr) || !session.getToken().equals(token))
+        if (session == null || !session.getUser().getName().equalsIgnoreCase(usr) || !session.getToken().equals(token))
             return Response.accepted(HTMLFactory.createHomePage("Session time expired. Please sign in again.")).build();
         session.extend(30);
         session.tokenUsageCount++;
@@ -77,44 +91,72 @@ public class WebInterfaceService {
     @POST
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response getNetworkInitializationResult(@PathParam("usr") String username,
+                                                   @QueryParam("mode") String mode,
                                                    @CookieParam("session") String sessionKey,
                                                    @CookieParam("token") String token,
                                                    @FormDataParam("file") InputStream uploadedInputStream,
-                                                   @FormDataParam("file") FormDataContentDisposition fileDetail,
-                                                   @Suspended final AsyncResponse asyncResponse)
-            throws URISyntaxException
+                                                   @FormDataParam("file") FormDataContentDisposition fileDetail)
+            throws URISyntaxException, UnsupportedEncodingException
     {
-        if (sessionKey == null || sessionKey.isEmpty() || token == null || token.isEmpty())
+        User user = db.getUser(username);
+        if (sessionKey == null || sessionKey.isEmpty() || token == null || token.isEmpty() || user == null)
             return Response.status(Response.Status.UNAUTHORIZED).build();
         Session session = sessions.getSession(sessionKey);
-        if (session == null || !session.getUser().getUsername().equalsIgnoreCase(usr) || !session.getToken().equals(token))
+        if (session == null || !session.getUser().getName().equalsIgnoreCase(username) || !session.getToken().equals(token))
             return Response.accepted(HTMLFactory.createHomePage("Session time expired. Please sign in again.")).build();
         session.extend(30);
         session.tokenUsageCount++;
         NewCookie[] cookies = formCookies(sessionKey, session.getToken());
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Response result = veryExpensiveOperation();
-                asyncResponse.resume(result);
+        if (user.getStoragePath() == null)
+            try {
+                FileProcessor.createUserDirectory(user);
+            } catch (IOException e) {
+                e.printStackTrace();
+                return Response.serverError().build();
             }
-
-            private Response veryExpensiveOperation() {
+        java.nio.file.Path filePath = FileProcessor.saveFileInStorage(user, uploadedInputStream, fileDetail.getName());
+        if (filePath == null) return Response.serverError().build();
+        String directoryPath = user.getStoragePath();
+        String fileName = fileDetail.getName();
+        Response result = null;
+        switch (mode) {
+            case "train":
                 try {
-                    // TODO: write file on disk, summon train() function for file
-                    return Response.seeOther(new URI(Routes.HOME + "/" + username)).cookie(cookies).build();
-                } catch (URISyntaxException e) {
-                    // sad, but who cares
+                    boolean succ = FileProcessor.trainNeuralNetwork(directoryPath, fileName);
+                    if (succ)
+                        result = Response.seeOther(new URI(Routes.HOME + "/" + username)).build();
+                    else {
+                        db.updateUserStoragePath(user.getName(), null);
+                        result = Response.serverError().build();
+                    }
+                } catch (IdleUpdateException e) {
                     e.printStackTrace();
                 }
-            }
-        }).start();
+                break;
+            case "encrypt" :
+            case "decrypt" :
+                java.nio.file.Path output = (mode.equals("encrypt"))
+                        ? FileProcessor.encryptFile(directoryPath, fileName)
+                        : FileProcessor.decryptFile(directoryPath, fileName);
+                if (output != null) {
+                    String queryParam = output.getFileName().toString();
+                    queryParam = URLEncoder.encode(queryParam, "UTF-8");
+                    result = Response.seeOther(new URI(Routes.HOME + "/" + username + "/download?file=" + queryParam)).build();
+                } else result = Response.serverError().build();
+                break;
+            default: result = Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        try {
+            Files.deleteIfExists(filePath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 
     /**
      * Осуществляет процесс аутентификации пользователя
      * @return http-ответ с GET-перенаправлением на новую страницу
-     * @throws URISyntaxException
      */
     @Path("/login")
     @POST
@@ -124,8 +166,8 @@ public class WebInterfaceService {
             String userSessionKey = authUser(username, password);
             String token = sessions.getSession(userSessionKey).getToken();
             NewCookie[] cookies = formCookies(userSessionKey, token);
-            if (sessions.getSession(userSessionKey).getUser().getNeuralNetworkConfigFilePath() == null)
-                // первый логин
+            if (sessions.getSession(userSessionKey).getUser().getStoragePath() == null)
+                // еще нет хранилища - первый логин
                 return Response.seeOther(new URI(username + Routes.NETWORK_INIT)).cookie(cookies).build();
             return Response.seeOther(new URI(Routes.HOME + username)).cookie(cookies).build();
         } catch (UserDoesNotExistException usrEx) {
@@ -139,7 +181,7 @@ public class WebInterfaceService {
 
     /**
      * Возвращает домашнюю страницу с указанием причины отказа во входе в сервис
-     * @param errorCause
+     * @param errorCause причина отказа: nullUser, passwordMismatch, notAuthorized
      * @return html-страница в строковом формате
      * @throws FailureCauseNotSpecifiedException если в запросе указана несуществующая причина отказа
      */
@@ -158,7 +200,6 @@ public class WebInterfaceService {
     /**
      * Осуществляет процесс регистрации пользователя
      * @return http-ответ с GET-перенаправлением на страницу результата или ошибкой 500
-     * @throws URISyntaxException
      */
     @Path("/register")
     @POST
@@ -178,7 +219,7 @@ public class WebInterfaceService {
      * Возвращает страницу регистрации
      * Если указана причина отказа в регистрации, помещает её в страницу
      * Если регистрация прошла успешно, возвращает домашнюю страницу с сообщением об успехе
-     * @param errorCause
+     * @param errorCause причина перенаправления: alreadyExists, successful
      * @return html-страница в строковом формате
      * @throws FailureCauseNotSpecifiedException если в запросе указана несуществующая причина отказа
      */
@@ -189,15 +230,17 @@ public class WebInterfaceService {
         if (errorCause == null || errorCause.isEmpty())
             return HTMLFactory.createRegistrationPage();
         switch (errorCause) {
-            case "alreadyExists":
-                return HTMLFactory.createRegistrationPage("User with specified username already registered");
-            case "successful":
-                return HTMLFactory.createHomePage("Registration successful. You can now sign in");
-            default:
-                throw new FailureCauseNotSpecifiedException();
+            case "alreadyExists": return HTMLFactory.createRegistrationPage("User with specified username already registered");
+            case "successful": return HTMLFactory.createHomePage("Registration successful. You can now sign in");
+            default: throw new FailureCauseNotSpecifiedException();
         }
     }
 
+    /**
+     * Осуществляет перкращение сеанса пользователя
+     * @param sessionKey ключ текущей сессии пользователя
+     * @return bad request code если сессия уже закрыта, иначе перенаправление на домашнюю страницу
+     */
     @Path("/logout")
     @GET
     public Response logout(@CookieParam("session") String sessionKey) throws URISyntaxException {
@@ -219,15 +262,11 @@ public class WebInterfaceService {
     private void registerUser(String name, String password) throws AlreadyExistsException, DatabaseUnreachableException {
         byte[] hash = getPasswordHash(password);
         if (db.isConnected()) {
-            try {
-                User entry = db.getUser(name);
-                if (entry != null)
-                    throw new AlreadyExistsException();
-                else
-                    db.addUser(name, hash);
-            } catch (SQLException e) {
-                throw new DatabaseUnreachableException();
-            }
+            User entry = db.getUser(name);
+            if (entry != null)
+                throw new AlreadyExistsException();
+            else
+                db.addUser(name, hash);
         } else throw new DatabaseUnreachableException();
     }
 
@@ -242,21 +281,17 @@ public class WebInterfaceService {
      */
     private String authUser(String name, String password) throws UserDoesNotExistException, PasswordMismatchException, DatabaseUnreachableException {
         if (db.isConnected()) {
-            try {
-                User entry = db.getUser(name);
-                if (entry == null)
-                    throw new UserDoesNotExistException();
-                //if (sessions.containsValue(entry))
-                //    return; // already authorized;
-                byte[] hash = getPasswordHash(password);
-                boolean passwordMatch = entry.assertPassword(hash);
-                if (!passwordMatch)
-                    throw new PasswordMismatchException();
-                else
-                    return sessions.openSession(entry, 30);
-            } catch (SQLException e) {
-                throw new DatabaseUnreachableException();
-            }
+            User entry = db.getUser(name);
+            if (entry == null)
+                throw new UserDoesNotExistException();
+            //if (sessions.containsValue(entry))
+            //    return; // already authorized;
+            byte[] hash = getPasswordHash(password);
+            boolean passwordMatch = entry.assertPassword(hash);
+            if (!passwordMatch)
+                throw new PasswordMismatchException();
+            else
+                return sessions.openSession(entry, 30);
         } else throw new DatabaseUnreachableException();
     }
 
@@ -266,11 +301,9 @@ public class WebInterfaceService {
      * @return массив из 32 байтов (хеш)
      */
     private byte[] getPasswordHash(String password) {
-        MessageDigest digest = null;
         try {
-            digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(password.getBytes(StandardCharsets.UTF_8));
-            return hash;
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(password.getBytes(StandardCharsets.UTF_8));
         } catch (NoSuchAlgorithmException e) {
             // probably never fires
             e.printStackTrace();
@@ -278,9 +311,14 @@ public class WebInterfaceService {
         }
     }
 
+    /**
+     * Формирует куки, содержащие информацию о сессии и токен
+     * @param session ключ сессии
+     * @param token действительный токен сессии
+     * @return массив из двух куки
+     */
     private NewCookie[] formCookies(String session, String token) {
-        NewCookie[] cookies = { new NewCookie("session", session),
+        return new NewCookie[]{ new NewCookie("session", session),
                 new NewCookie("token", token)};
-        return cookies;
     }
 }
