@@ -2,96 +2,107 @@ package edu.susu.crypto;
 
 abstract class HTMLFactory {
 	
-	private static final String template = "<!DOCTYPE html>"
-		+ "<html>"
-		+ "<head>"
-		+ "<meta charset=\"UTF-8\">"
-		+ "<title>$title</title>"
-		+ "</head>"
-		+ "<body>"
-		+ "$content"
-		+ "</body>"
-		+ "</html>";
+	private static final String template = "<!DOCTYPE html>\n" +
+			"<html>" +
+			"<head>" +
+			"<meta charset=\"UTF-8\">" +
+			"<title>CryptoANN</title>" +
+			"<link rel=\"stylesheet\" type=\"text/css\" href=\"/styles.css\">" +
+			"</head>" +
+			"<body>" +
+			"<header><center><img src=\"/logo2.png\" height=\"150\" width=\"auto\"></img></center></header>\n" +
+			"$content" +
+			"<script src=\"/file-inputs.js\"></script>" +
+			"<script src=\"/loginForm.js\"></script>" +
+			"</body>" +
+			"</html>";
 
-	private static final String loginForm = "<form action=\""+ Routes.LOGIN +"\" method=\"post\">"
-			+ "Username:<br>"
-			+ "<input type=\"text\" name=\"username\"><br>"
-			+ "Password:<br>"
-			+ "<input type=\"password\" name=\"password\"><br>"
-			+ "<input type=\"submit\" value=\"Sign in\">"
-			+ "</form>";
+	private static final String loginFormTemplate = "<div class=\"form-wrapper\">" +
+			"<form action=\"\" method=\"post\" align=\"center\" id=\"loginForm\">" +
+			"<div class=\"imgcontainer\"><img src=\"/loginicondblue.png\" alt=\"Avatar\" class=\"avatar\"></div>" +
+			"<div class=\"message-line-red\"><font face=\"Arial\" color=\"white\"><b>$message</b></font></div>" +
+			"<div style=\"padding:16px\">\n" +
+			"<input type=\"text\" placeholder=\"Username\" name=\"username\" required>" +
+			"<input type=\"password\" placeholder=\"Password\" name=\"password\" required>" +
+			"<button type=\"button\" onclick=\"submitWithAction(\'$registerAction\');\">Register</button>" +
+			"<button type=\"button\" onclick=\"submitWithAction(\'$loginAction\');\">Sign in</button>" +
+			"</div>" +
+			"</form>" +
+			"</div>";
 
-	private static final String registrationForm = "<form action=\""+ Routes.REGISTER +"\" method=\"post\">"
-			+ "Username:<br>"
-			+ "<input type=\"text\" name=\"username\"><br>"
-			+ "Password:<br>"
-			+ "<input type=\"password\" name=\"password\"><br>"
-			+ "<input type=\"submit\" value=\"Register\">"
-			+ "</form>";
+	private static final String fileUploadFormTemplate = "<div class=\"$class\">" +
+			"<form action=\"$action\" enctype=\"multipart/form-data\" method=\"post\" align=\"center\">" +
+			"<div class=\"imgcontainer\"><img src=\"$avatar\" alt=\"Avatar\" class=\"avatar\"></div>" +
+			"<div class=\"message-line-$messageColor\">" +
+			"<font face=\"Arial\" color=\"white\"><b>$header</b></font>" +
+			"</div>" +
+			"<div style=\"padding:16px\">" +
+			"<label class=\"file-name-holder\">No file chosen</label>" +
+			"<label class=\"file-container\">Choose a file" +
+			"<input type=\"file\" name=\"file\" class=\"inputfile\" required>" +
+			"</label>" +
+			"<button type=\"submit\" style=\"width:100%\">$button</button>" +
+			"</div>" +
+			"</form>" +
+			"</div>";
 
-    private static final String fileUploadFormTemplate = "<form action=\"$action\" method=\"post\" enctype=\"multipart/form-data\">"
-            + "<input type=\"file\" name=\"file\"><br>"
-            + "<input type=\"submit\" value=\"Upload\">"
-            + "</form>";
+	private static final String fileUploadFormsTemplate = "<div align=\"center\">" +
+			fileUploadFormTemplate.replace("$action", "$encryptAction")
+					.replace("$class", "file-form-wrapper-inline")
+					.replace("$avatar", "/encLogo.png")
+					.replace("$messageColor", "blue")
+					.replace("$header", "File encryption")
+					.replace("$button", "Encrypt file") +
+			fileUploadFormTemplate.replace("$action", "$decryptAction")
+					.replace("$class", "file-form-wrapper-inline")
+					.replace("$avatar", "/decLogo.png")
+					.replace("$messageColor", "blue")
+					.replace("$header", "File decryption")
+					.replace("$button", "Decrypt file") +
+			"</div>";
+
+	private static final String trainUploadFormTemplate = fileUploadFormTemplate
+			.replace("$class", "train-form-wrapper")
+			.replace("$avatar", "/trainLogo.png")
+			.replace("$messageColor", "red")
+			.replace("$header", "Training set")
+			.replace("$button", "Create Artificial Neural Network");
+
+	private static final String logoutButton = "<button class=\"logout-button\" onclick=\"location.href='/rest/logout';\">Sign out</button>";
 	
-	public static String createHomePage() {
-		String page = template.replace("$title", "Crypto ANN");
-		page = page.replace("$content", "<h1>Hello, stranger!</h1>"
-				+ "<p>Please sign in to access Web Service</p>"
-				+ loginForm
-				+ "Or you can try to <a href=\""+ Routes.REGISTER +"\">register</a>");
-		return page;
+	public static String createLoginPage() {
+		return createLoginPage("Please fill the fields below to sign in or register");
 	}
 
-	public static String createHomePage(String errorExplanation) {
-		String page = template.replace("$title", "Crypto ANN");
-		page = page.replace("$content", "<h1>Hello, stranger!</h1>"
-				+ "<p>" + errorExplanation + "</p>"
-				+ loginForm
-				+ "Or you can try to <a href=\""+ Routes.REGISTER +"\">register</a>");
-		return page;
+	public static String createLoginPage(String errorExplanation) {
+		String loginForm = loginFormTemplate
+				.replace("$loginAction", Routes.LOGIN)
+				.replace("$registerAction", Routes.REGISTER)
+				.replace("$message", errorExplanation);
+		return template.replace("$content", loginForm);
 	}
 
 	public static String createUserPage(String username) {
-		String page = template.replace("$title", "Crypto ANN");
-		page = page.replace("$content", "<h1>Hello, " + username + "</h1>"
-				+ "<p>This is your private page.</p>"
-				+ "<p>We assume jumping <a href=\"" + Routes.HOME + "/" + username
-                + "\">this exact page</a> could be done only once per token.</p>"
-				+ "<a href=\"" + Routes.LOGOUT + "\">Sign out</a>"
-				+ "</form>");
+		String encUploadForm = fileUploadFormsTemplate
+				.replace("$encryptAction", Routes.ROOT + "/" + username + Routes.UPLOAD_POSTFIX + "?mode=encrypt")
+				.replace("$decryptAction", Routes.ROOT + "/" + username + Routes.UPLOAD_POSTFIX + "?mode=decrypt");
+		String page = template.replace("$content", encUploadForm + logoutButton);
 		return page;
 	}
 	
-	public static String createRegistrationPage() {
-		String page = template.replace("$title", "Crypto ANN");
-		page = page.replace("$content", "<h1>Registration</h1>"
-				+ "<p>Please fill the form below to create your account</p>"
-				+ registrationForm);
-		return page;
-	}
-	
-	public static String createRegistrationPage(String errorCause) {
-		String page = template.replace("$title", "Crypto ANN");
-		page = page.replace("$content", "<h1>Registration</h1>"
-				+ "<p>" + errorCause + "</p>"
-				+ "<p>Please fill the form below to create your account</p>"
-				+ registrationForm);
-		return page;
-	}
-
 	public static String createANNInitPage(String username) {
-	    String page = template.replace("$title", "Crypto ANN");
-	    String fileUploadForm = fileUploadFormTemplate
-				.replace("$action", Routes.HOME + "/" + username + "/upload?mode=train");
-        page = page.replace("$content", "<h1>ANN Initialization</h1>"
-                + "<h2>Hello, " + username + "</h2>"
-                + "<p>Since this is the first time you use our WebService, your personal Artificial Neural Network Encryptor should now be configured.</p>"
-                + "<p>Upload any file, some book for example, and we shall use it as a training set for your future Encryptor."
-                + " Once we're done, the Neral Network will be bound to your account, ready to encrypt and decrypt any file you will give to it.</p>"
-                + "<p>Please choose the file you want to use as a training set: </p>"
-                + fileUploadForm);
-        return page;
+	    String fileUploadForm = trainUploadFormTemplate
+				.replace("$action", Routes.ROOT + "/" + username + Routes.UPLOAD_POSTFIX + "?mode=train");
+	    String content = ("<div class=\"text-wrapper\">" + "$inner-content" + "</div>")
+				.replace("$inner-content", "<h2>Welcome, " + username + "</h2>" +
+				"<p>Since this is the first time you use our WebService, your personal Artificial Neural Network Encryptor should now be configured.</p>" +
+				"<p>Upload any file, some book perhaps, and we shall use it as a training set for your future Encryptor. " +
+				"Once we're done, the Neural Network will be bound to your account, ready to encrypt and decrypt any file you will give to it.</p>" +
+				"<p>Please choose the file you want to use as a training set:</p>" +
+				fileUploadForm +
+				"<p><b>Note:</b> Depending on file size, network training could take a few minutes. Files under 10 MB are processed relatively fast.</p>" +
+				logoutButton);
+		return template.replace("$content", content);
     }
 
 }

@@ -1,0 +1,166 @@
+/* для шапки */
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+        background-image: url("autistic-neural-network-3-1 - Copy.jpg");
+		background-repeat: no-repeat;
+		background-size: auto cover;
+}
+
+div {
+	text-align: center;
+}
+
+header {
+    background-color: #01163d;
+}
+
+header h1 {
+    margin: 0;
+}
+
+/*для выравнивания формы по горизонтальному центру окна*/
+.form-wrapper {
+	width: 400px;
+	margin: 100px auto 0 auto;
+	text-align: left;
+}
+
+/* границы формы */
+form {
+    border: 3px solid #f1f1f1;
+    width: 100%;
+    height:100%;
+    background:rgba(255, 255, 255, 0.5);
+}
+
+/* поля ввода формы */
+input[type=text], input[type=password] {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+.train-form-wrapper {
+	width: 500px;
+	padding: 0 32px 0 32px;
+	margin: 0 auto 0 auto;
+	text-align: left;
+}
+
+.train-form-wrapper form {
+	border: 1px solid #01163d;
+}
+
+.text-wrapper {
+	/*color: white;*/
+	font: 16px Century Gothic;
+	background-color: rgba(255, 255, 255, 0.85);
+	padding: 16px;
+	width:60%;
+	margin:0 auto;
+}
+
+.file-form-wrapper-inline {
+	display: inline-block;
+	width: 350px;
+	padding: 0 32px 0 32px;
+	margin: 100px auto 0 auto;
+	text-align: left;
+}
+
+.file-name-holder {
+	overflow: hidden;
+	position: relative;
+	background-color: rgba(255, 255, 255, 0.9);
+	float: left;
+    padding: 13px 20px;
+	/*height: 18px;*/
+	width: 60%;
+	border: 1px solid #ccc;
+	box-sizing: border-box;
+	font: 13.3333px Arial;
+}
+
+.file-container {
+	overflow: hidden;
+	position: relative;
+	background-color: #01163d;
+	color: white;
+    float: right;
+    padding: 14px 20px;
+	/*height: 18px;*/
+	/*width: 28%;*/
+	border: none;
+	font: 13.3333px Arial;
+}
+
+.file-container input[type=file] {
+	cursor: pointer;
+	display: block;
+    font-size: 999px;
+    filter: alpha(opacity=0);
+    min-height: 100%;
+    min-width: 100%;
+    opacity: 0;
+    position: absolute;
+    right: 0;
+    text-align: right;
+    top: 0;
+}
+
+.file-container:hover {	
+    background-color: #5eb5e1;
+}
+
+/* кнопки формы */
+button {
+    background-color: #01163d;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: none;
+    cursor: pointer;
+    width: 49.4%;
+	font: 13.3333px Arial;
+}
+
+/* эффекти наведения на кнопку */
+button:hover {
+    background-color: #5eb5e1;
+}
+
+.logout-button {
+	width: auto;
+	font: 14px Arial;"
+}
+
+/* Center the avatar image inside this container */
+.imgcontainer {
+    text-align: center;
+    margin: 24px 0 0 0;
+}
+
+/* Avatar image */
+img.avatar {
+    width: 150px;
+    border-radius: 50%;
+}
+
+.message-line-red {
+	padding:8px;
+	margin:16px 0px 0 0;
+	background-color: rgba(175, 0, 0, 0.6);
+}
+
+.message-line-blue {
+	padding:8px;
+	margin: 16px 0 0 0;
+	background-color: rgba(31, 45, 100, 0.75);
+}

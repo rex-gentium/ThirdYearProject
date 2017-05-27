@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>CryptoANN</title>
+<link rel="stylesheet" type="text/css" href="/styles.css">
+</head>
+<body>
+
+<header><center><img src="/logo2.png" height="150" width="auto"></img></center></header>
+
+<div class="form-wrapper">
+	<form action="" method="post" align="center" id="loginForm">
+		<div class="imgcontainer"><img src="/loginicondblue.png" alt="Avatar" class="avatar"></div>
+		<div class="message-line-red"><font face="Arial" color="white"><b>Please sign in to access your profile or register</b></font></div>
+		<div style="padding:16px">
+			<input type="text" placeholder="Username" name="username" required>
+			<input type="password" placeholder="Password" name="password" required>
+			<button type="button" onclick="submitWithAction('/rest/register');">Register</button>
+			<button type="button" onclick="submitWithAction('/rest/login')">Sign in</button>
+		</div>
+	</form>
+</div>
+
+<script src="/loginForm.js"></script>
+
+</body>
+</html>

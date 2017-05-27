@@ -23,7 +23,7 @@ public class DatabaseConnector {
 	/**
 	 * Создаёт объект коннектора к указанной базе данных и регистрирует встроенный драйвер
 	 * @param driverName название (встроенного) драйвера базы данных
-	 * @param protocol проткол подключения к базе данных
+	 * @param protocol протокол подключения к базе данных
 	 * @param databaseName название базы данных
 	 */
 	public DatabaseConnector(String driverName, String protocol, String databaseName) 

@@ -40,8 +40,10 @@ public class FileProcessor {
         try {
             if (user.getStoragePath() == null)
                 createUserDirectory(user);
-            Path userDirectory = Paths.get(user.getStoragePath());
-            Path filePath = Files.createTempFile(userDirectory, fileName, null);
+            Path filePath = Paths.get(user.getStoragePath(), fileName);
+            if (filePath.toFile().exists())
+                Files.delete(filePath);
+            else Files.createFile(filePath);
             FileOutputStream fos = new FileOutputStream(filePath.toFile());
             int rByte;
             while ((rByte = file.read()) >= 0)
@@ -71,7 +73,7 @@ public class FileProcessor {
         try {
             Process process = new ProcessBuilder(ANN_EXECUTABLE_PATH, directoryPath, fileName, "encrypt").start();
             int returnValue = process.waitFor();
-            return (returnValue == 0) ? Paths.get(directoryPath, fileName + ".crypto") : null;
+            return (returnValue == 0) ? Paths.get(directoryPath, fileName) : null;
         } catch (InterruptedException | IOException e) {
             e.printStackTrace();
             return null;
@@ -82,7 +84,7 @@ public class FileProcessor {
         try {
             Process process = new ProcessBuilder(ANN_EXECUTABLE_PATH, directoryPath, fileName, "decrypt").start();
             int returnValue = process.waitFor();
-            return (returnValue == 0) ? Paths.get(directoryPath, fileName + ".decrypted") : null;
+            return (returnValue == 0) ? Paths.get(directoryPath, fileName) : null;
         } catch (InterruptedException | IOException e) {
             e.printStackTrace();
             return null;

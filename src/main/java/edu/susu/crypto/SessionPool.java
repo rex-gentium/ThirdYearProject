@@ -31,6 +31,11 @@ public class SessionPool {
         sessions.remove(sessionKey);
     }
 
+    public void closeAllSessions() {
+        for (String sessionKey : sessions.keySet())
+            closeSession(sessionKey);
+    }
+
     /**
      * Возвращает сессию по ключу
      * @param key ключ
